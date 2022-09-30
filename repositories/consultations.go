@@ -7,7 +7,7 @@ import (
 )
 
 type ConsultationRepository interface {
-	FindConsultations() ([]models.Consultation, error)
+	FindConsultations(UserID int) ([]models.Consultation, error)
 	GetConsultation(ID int) (models.Consultation, error)
 	CreateConsultation(consultation models.Consultation) (models.Consultation, error)
 	UpdateConsultation(consultation models.Consultation, consultationID int) (models.Consultation, error)
@@ -35,9 +35,9 @@ func (r *repository) GetConsultationAuthor(UserID int) (models.User, error) {
 	return user, err
 }
 
-func (r *repository) FindConsultations() ([]models.Consultation, error) {
+func (r *repository) FindConsultations(UserID int) ([]models.Consultation, error) {
 	var consultations []models.Consultation
-	err := r.db.Find(&consultations).Error
+	err := r.db.Raw("SELECT * FROM consultations WHERE user_id=?", UserID).Scan(&consultations).Error
 
 	return consultations, err
 }

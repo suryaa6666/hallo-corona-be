@@ -25,7 +25,10 @@ func HandlerConsultation(consultationRepositories repositories.ConsultationRepos
 func (h *handlerConsultation) FindConsultations(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	consultations, err := h.consultationRepositories.FindConsultations()
+	userInfo := r.Context().Value(string("userInfo")).(jwt.MapClaims)
+	userInfoId := userInfo["id"].(float64)
+
+	consultations, err := h.consultationRepositories.FindConsultations(int(userInfoId))
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -149,17 +152,18 @@ func (h *handlerConsultation) CreateConsultation(w http.ResponseWriter, r *http.
 	}
 
 	consultation := models.Consultation{
-		FullName:    request.FullName,
-		Phone:       request.Phone,
-		BornDate:    request.BornDate,
-		Age:         request.Age,
-		Height:      request.Height,
-		Weight:      request.Weight,
-		Gender:      request.Gender,
-		Subject:     request.Subject,
-		Description: request.Description,
-		Status:      "pending",
-		UserID:      int(userInfoId),
+		FullName:         request.FullName,
+		Phone:            request.Phone,
+		BornDate:         request.BornDate,
+		Age:              request.Age,
+		Height:           request.Height,
+		Weight:           request.Weight,
+		LiveConsultation: request.LiveConsultation,
+		Gender:           request.Gender,
+		Subject:          request.Subject,
+		Description:      request.Description,
+		Status:           "pending",
+		UserID:           int(userInfoId),
 	}
 
 	data, err := h.consultationRepositories.CreateConsultation(consultation)
@@ -223,10 +227,6 @@ func (h *handlerConsultation) UpdateConsultationStatus(w http.ResponseWriter, r 
 		return
 	}
 
-	if request.LiveConsultation != 0 {
-		consultation.LiveConsultation = request.LiveConsultation
-	}
-
 	if request.Status != "" {
 		consultation.Status = request.Status
 	}
@@ -235,7 +235,7 @@ func (h *handlerConsultation) UpdateConsultationStatus(w http.ResponseWriter, r 
 		consultation.ReplyID = request.ReplyID
 	}
 
-	if consultation.LiveConsultation == 0 || consultation.Status == "" || consultation.ReplyID == 0 || consultation.UserID == 0 {
+	if consultation.Status == "" || consultation.ReplyID == 0 || consultation.UserID == 0 {
 		validation := validator.New()
 		err := validation.Struct(request)
 
@@ -358,7 +358,11 @@ func (h *handlerConsultation) UpdateConsultation(w http.ResponseWriter, r *http.
 		consultation.Description = request.Description
 	}
 
-	if consultation.FullName == "" || consultation.Phone == "" || consultation.BornDate == 0 || consultation.Age == 0 || consultation.Weight == 0 || consultation.Height == 0 || consultation.Gender == "" || consultation.Subject == "" || consultation.Description == "" {
+	if request.LiveConsultation != 0 {
+		consultation.LiveConsultation = request.LiveConsultation
+	}
+
+	if consultation.FullName == "" || consultation.Phone == "" || consultation.BornDate == 0 || consultation.Age == 0 || consultation.Weight == 0 || consultation.Height == 0 || consultation.Gender == "" || consultation.Subject == "" || consultation.Description == "" || consultation.LiveConsultation == 0 {
 		validation := validator.New()
 		err := validation.Struct(request)
 
