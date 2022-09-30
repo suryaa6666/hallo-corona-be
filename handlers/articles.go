@@ -48,6 +48,8 @@ func (h *handlerArticle) FindArticles(w http.ResponseWriter, r *http.Request) {
 			Description: article.Description,
 			Image:       article.Image,
 			User:        user,
+			CreatedAt:   article.CreatedAt,
+			UpdatedAt:   article.UpdatedAt,
 		})
 	}
 
@@ -85,6 +87,8 @@ func (h *handlerArticle) GetArticle(w http.ResponseWriter, r *http.Request) {
 		Image:       article.Image,
 		Description: article.Description,
 		User:        user,
+		CreatedAt:   article.CreatedAt,
+		UpdatedAt:   article.UpdatedAt,
 	}
 
 	w.WriteHeader(http.StatusOK)

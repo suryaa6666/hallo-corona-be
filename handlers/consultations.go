@@ -54,6 +54,8 @@ func (h *handlerConsultation) FindConsultations(w http.ResponseWriter, r *http.R
 			Status:           consultation.Status,
 			Reply:            reply,
 			User:             user,
+			CreatedAt:        consultation.CreatedAt,
+			UpdatedAt:        consultation.UpdatedAt,
 		})
 	}
 
@@ -113,6 +115,8 @@ func (h *handlerConsultation) GetConsultation(w http.ResponseWriter, r *http.Req
 		Status:           consultation.Status,
 		Reply:            reply,
 		User:             user,
+		CreatedAt:        consultation.CreatedAt,
+		UpdatedAt:        consultation.UpdatedAt,
 	}
 
 	w.WriteHeader(http.StatusOK)

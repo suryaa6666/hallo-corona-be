@@ -2,6 +2,7 @@ package articledto
 
 import (
 	"hallocorona/models"
+	"time"
 )
 
 type ArticleResponse struct {
@@ -11,4 +12,6 @@ type ArticleResponse struct {
 	Description string      `json:"description"`
 	UserID      int         `json:"-"`
 	User        models.User `json:"user"`
+	CreatedAt   time.Time   `json:"createdAt"`
+	UpdatedAt   time.Time   `json:"updatedAt"`
 }

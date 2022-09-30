@@ -39,11 +39,13 @@ func (h *handlerReply) FindReplies(w http.ResponseWriter, r *http.Request) {
 	for _, reply := range replies {
 		user, _ := h.replyRepositories.GetReplyAuthor(reply.UserID)
 		result = append(result, replydto.ReplyResponse{
-			ID:       reply.ID,
-			Response: reply.Response,
-			MeetLink: reply.MeetLink,
-			MeetType: reply.MeetType,
-			User:     user,
+			ID:        reply.ID,
+			Response:  reply.Response,
+			MeetLink:  reply.MeetLink,
+			MeetType:  reply.MeetType,
+			User:      user,
+			CreatedAt: reply.CreatedAt,
+			UpdatedAt: reply.UpdatedAt,
 		})
 	}
 
@@ -76,11 +78,13 @@ func (h *handlerReply) GetReply(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result := replydto.ReplyResponse{
-		ID:       reply.ID,
-		Response: reply.Response,
-		MeetLink: reply.MeetLink,
-		MeetType: reply.MeetType,
-		User:     user,
+		ID:        reply.ID,
+		Response:  reply.Response,
+		MeetLink:  reply.MeetLink,
+		MeetType:  reply.MeetType,
+		User:      user,
+		CreatedAt: reply.CreatedAt,
+		UpdatedAt: reply.UpdatedAt,
 	}
 
 	w.WriteHeader(http.StatusOK)

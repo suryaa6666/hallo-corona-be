@@ -2,6 +2,7 @@ package consultationdto
 
 import (
 	"hallocorona/models"
+	"time"
 )
 
 type ConsultationResponse struct {
@@ -21,4 +22,6 @@ type ConsultationResponse struct {
 	Reply            models.Reply `json:"reply"`
 	UserID           int          `json:"-"`
 	User             models.User  `json:"user"`
+	CreatedAt        time.Time    `json:"createdAt"`
+	UpdatedAt        time.Time    `json:"updatedAt"`
 }
