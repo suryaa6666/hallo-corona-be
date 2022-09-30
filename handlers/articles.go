@@ -38,23 +38,8 @@ func (h *handlerArticle) FindArticles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var result []articledto.ArticleResponse
-
-	for _, article := range articles {
-		user, _ := h.ArticleRepositories.GetArticleAuthor(article.UserID)
-		result = append(result, articledto.ArticleResponse{
-			ID:          article.ID,
-			Title:       article.Title,
-			Description: article.Description,
-			Image:       article.Image,
-			User:        user,
-			CreatedAt:   article.CreatedAt,
-			UpdatedAt:   article.UpdatedAt,
-		})
-	}
-
 	w.WriteHeader(http.StatusOK)
-	response := dto.SuccessResult{Code: http.StatusOK, Data: result}
+	response := dto.SuccessResult{Code: http.StatusOK, Data: articles}
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -72,27 +57,8 @@ func (h *handlerArticle) GetArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.ArticleRepositories.GetArticleAuthor(article.UserID)
-
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		response := dto.ErrorResult{Code: http.StatusBadRequest, Message: err.Error()}
-		json.NewEncoder(w).Encode(response)
-		return
-	}
-
-	result := articledto.ArticleResponse{
-		ID:          article.ID,
-		Title:       article.Title,
-		Image:       article.Image,
-		Description: article.Description,
-		User:        user,
-		CreatedAt:   article.CreatedAt,
-		UpdatedAt:   article.UpdatedAt,
-	}
-
 	w.WriteHeader(http.StatusOK)
-	response := dto.SuccessResult{Code: http.StatusOK, Data: result}
+	response := dto.SuccessResult{Code: http.StatusOK, Data: article}
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -105,10 +71,18 @@ func (h *handlerArticle) CreateArticle(w http.ResponseWriter, r *http.Request) {
 	userInfo := r.Context().Value(string("userInfo")).(jwt.MapClaims)
 	userInfoId := userInfo["id"].(float64)
 
+	var categoriesId []int
+	for _, r := range r.FormValue("categoryId") {
+		if int(r-'0') >= 0 {
+			categoriesId = append(categoriesId, int(r-'0'))
+		}
+	}
+
 	request := articledto.CreateArticleRequest{
 		Title:       r.FormValue("title"),
 		Image:       filepath,
 		Description: r.FormValue("description"),
+		CategoryID:  categoriesId,
 		UserID:      int(userInfoId),
 	}
 
@@ -138,11 +112,21 @@ func (h *handlerArticle) CreateArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	category, err := h.ArticleRepositories.FindArticleCategoriesByID(categoriesId)
+
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		response := dto.ErrorResult{Code: http.StatusBadRequest, Message: err.Error()}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
 	article := models.Article{
 		Title:       request.Title,
 		Image:       resp.SecureURL,
 		Description: request.Description,
 		UserID:      request.UserID,
+		Category:    category,
 	}
 
 	data, err := h.ArticleRepositories.CreateArticle(article)
@@ -157,8 +141,8 @@ func (h *handlerArticle) CreateArticle(w http.ResponseWriter, r *http.Request) {
 	user, err := h.ArticleRepositories.GetArticleAuthor(data.UserID)
 
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		response := dto.ErrorResult{Code: http.StatusBadRequest, Message: err.Error()}
+		w.WriteHeader(http.StatusInternalServerError)
+		response := dto.ErrorResult{Code: http.StatusInternalServerError, Message: err.Error()}
 		json.NewEncoder(w).Encode(response)
 		return
 	}
@@ -169,6 +153,9 @@ func (h *handlerArticle) CreateArticle(w http.ResponseWriter, r *http.Request) {
 		Image:       data.Image,
 		Description: data.Description,
 		User:        user,
+		Category:    data.Category,
+		CreatedAt:   data.CreatedAt,
+		UpdatedAt:   data.UpdatedAt,
 	}
 
 	w.WriteHeader(http.StatusCreated)
@@ -185,10 +172,18 @@ func (h *handlerArticle) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 	userInfo := r.Context().Value(string("userInfo")).(jwt.MapClaims)
 	userInfoId := userInfo["id"].(float64)
 
+	var categoriesId []int
+	for _, r := range r.FormValue("categoryId") {
+		if int(r-'0') >= 0 {
+			categoriesId = append(categoriesId, int(r-'0'))
+		}
+	}
+
 	request := articledto.UpdateArticleRequest{
 		Title:       r.FormValue("title"),
 		Description: r.FormValue("description"),
 		UserID:      int(userInfoId),
+		CategoryID:  categoriesId,
 		Image:       filepath,
 	}
 
@@ -235,7 +230,17 @@ func (h *handlerArticle) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 		article.Description = request.Description
 	}
 
-	if article.Title == "" || article.Description == "" || article.Image == "" || article.UserID == 0 {
+	// ini intinya buat mengefetch isian category
+	var category []models.Category
+	if len(categoriesId) != 0 {
+		category, _ = h.ArticleRepositories.FindArticleCategoriesByID(categoriesId)
+	}
+
+	if request.CategoryID != nil {
+		article.Category = category
+	}
+
+	if article.Title == "" || article.Description == "" || article.Image == "" || article.UserID == 0 || article.CategoryID == nil || request.CategoryID == nil {
 		validation := validator.New()
 		err := validation.Struct(request)
 
@@ -256,25 +261,8 @@ func (h *handlerArticle) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.ArticleRepositories.GetArticleAuthor(data.UserID)
-
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		response := dto.ErrorResult{Code: http.StatusBadRequest, Message: err.Error()}
-		json.NewEncoder(w).Encode(response)
-		return
-	}
-
-	result := articledto.ArticleResponse{
-		ID:          data.ID,
-		Title:       data.Title,
-		Image:       data.Image,
-		Description: data.Description,
-		User:        user,
-	}
-
 	w.WriteHeader(http.StatusOK)
-	response := dto.SuccessResult{Code: http.StatusOK, Data: result}
+	response := dto.SuccessResult{Code: http.StatusOK, Data: data}
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -301,24 +289,7 @@ func (h *handlerArticle) DeleteArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.ArticleRepositories.GetArticleAuthor(data.UserID)
-
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		response := dto.ErrorResult{Code: http.StatusBadRequest, Message: err.Error()}
-		json.NewEncoder(w).Encode(response)
-		return
-	}
-
-	result := articledto.ArticleResponse{
-		ID:          data.ID,
-		Title:       data.Title,
-		Image:       data.Image,
-		Description: data.Description,
-		User:        user,
-	}
-
 	w.WriteHeader(http.StatusOK)
-	response := dto.SuccessResult{Code: http.StatusOK, Data: result}
+	response := dto.SuccessResult{Code: http.StatusOK, Data: data}
 	json.NewEncoder(w).Encode(response)
 }

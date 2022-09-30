@@ -11,6 +11,8 @@ type Article struct {
 	Description string        `json:"description" form:"description" gorm:"type: text"`
 	UserID      int           `json:"-"`
 	User        UsersResponse `json:"user" gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	Category    []Category    `json:"category" gorm:"many2many:article_categories;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	CategoryID  []int         `json:"-" gorm:"-"`
 	CreatedAt   time.Time     `json:"createdAt"`
 	UpdatedAt   time.Time     `json:"updatedAt"`
 }

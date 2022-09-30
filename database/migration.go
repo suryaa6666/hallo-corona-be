@@ -11,6 +11,7 @@ func RunMigration() {
 		&models.User{},
 		&models.Reply{},
 		&models.Article{},
+		&models.Category{},
 		&models.Consultation{},
 	)
 
