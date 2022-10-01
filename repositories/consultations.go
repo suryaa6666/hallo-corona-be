@@ -7,8 +7,8 @@ import (
 )
 
 type ConsultationRepository interface {
-	FindConsultations(UserID int) ([]models.Consultation, error)
-	GetConsultation(ID int) (models.Consultation, error)
+	FindConsultations(UserID int, ListAs string) ([]models.Consultation, error)
+	GetConsultation(ID int, UserID int, ListAs string) (models.Consultation, error)
 	CreateConsultation(consultation models.Consultation) (models.Consultation, error)
 	UpdateConsultation(consultation models.Consultation, consultationID int) (models.Consultation, error)
 	DeleteConsultation(consultation models.Consultation) (models.Consultation, error)
@@ -35,16 +35,27 @@ func (r *repository) GetConsultationAuthor(UserID int) (models.User, error) {
 	return user, err
 }
 
-func (r *repository) FindConsultations(UserID int) ([]models.Consultation, error) {
+func (r *repository) FindConsultations(UserID int, ListAs string) ([]models.Consultation, error) {
 	var consultations []models.Consultation
-	err := r.db.Raw("SELECT * FROM consultations WHERE user_id=?", UserID).Scan(&consultations).Error
+	var err error
+	if ListAs == "doctor" {
+		err = r.db.Find(&consultations).Error
+	} else {
+		err = r.db.Raw("SELECT * FROM consultations WHERE user_id=?", UserID).Scan(&consultations).Error
+	}
 
 	return consultations, err
 }
 
-func (r *repository) GetConsultation(ID int) (models.Consultation, error) {
+func (r *repository) GetConsultation(ID int, UserID int, ListAs string) (models.Consultation, error) {
 	var consultation models.Consultation
-	err := r.db.First(&consultation, ID).Error
+
+	var err error
+	if ListAs == "doctor" {
+		err = r.db.First(&consultation, ID).Where("user_id = ?", UserID).Error
+	} else {
+		err = r.db.First(&consultation, ID).Error
+	}
 
 	return consultation, err
 }

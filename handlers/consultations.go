@@ -27,8 +27,9 @@ func (h *handlerConsultation) FindConsultations(w http.ResponseWriter, r *http.R
 
 	userInfo := r.Context().Value(string("userInfo")).(jwt.MapClaims)
 	userInfoId := userInfo["id"].(float64)
+	userListAs := userInfo["listAs"].(string)
 
-	consultations, err := h.consultationRepositories.FindConsultations(int(userInfoId))
+	consultations, err := h.consultationRepositories.FindConsultations(int(userInfoId), userListAs)
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -72,7 +73,11 @@ func (h *handlerConsultation) GetConsultation(w http.ResponseWriter, r *http.Req
 
 	id, _ := strconv.Atoi(mux.Vars(r)["id"])
 
-	consultation, err := h.consultationRepositories.GetConsultation(id)
+	userInfo := r.Context().Value(string("userInfo")).(jwt.MapClaims)
+	userInfoId := userInfo["id"].(float64)
+	userListAs := userInfo["listAs"].(string)
+
+	consultation, err := h.consultationRepositories.GetConsultation(id, int(userInfoId), userListAs)
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -217,8 +222,12 @@ func (h *handlerConsultation) UpdateConsultationStatus(w http.ResponseWriter, r 
 		return
 	}
 
+	userInfo := r.Context().Value(string("userInfo")).(jwt.MapClaims)
+	userInfoId := userInfo["id"].(float64)
+	userListAs := userInfo["listAs"].(string)
+
 	id, _ := strconv.Atoi(mux.Vars(r)["id"])
-	consultation, err := h.consultationRepositories.GetConsultation(id)
+	consultation, err := h.consultationRepositories.GetConsultation(id, int(userInfoId), userListAs)
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -312,8 +321,12 @@ func (h *handlerConsultation) UpdateConsultation(w http.ResponseWriter, r *http.
 		return
 	}
 
+	userInfo := r.Context().Value(string("userInfo")).(jwt.MapClaims)
+	userInfoId := userInfo["id"].(float64)
+	userListAs := userInfo["listAs"].(string)
+
 	id, _ := strconv.Atoi(mux.Vars(r)["id"])
-	consultation, err := h.consultationRepositories.GetConsultation(id)
+	consultation, err := h.consultationRepositories.GetConsultation(id, int(userInfoId), userListAs)
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -432,7 +445,11 @@ func (h *handlerConsultation) DeleteConsultation(w http.ResponseWriter, r *http.
 
 	id, _ := strconv.Atoi(mux.Vars(r)["id"])
 
-	consultation, err := h.consultationRepositories.GetConsultation(id)
+	userInfo := r.Context().Value(string("userInfo")).(jwt.MapClaims)
+	userInfoId := userInfo["id"].(float64)
+	userListAs := userInfo["listAs"].(string)
+
+	consultation, err := h.consultationRepositories.GetConsultation(id, int(userInfoId), userListAs)
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
