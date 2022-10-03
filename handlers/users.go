@@ -120,8 +120,6 @@ func (h *handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	dataContext := r.Context().Value(string("dataFile"))
-	filepath := dataContext.(string)
-
 	request := usersdto.UpdateUserRequest{
 		FullName: r.FormValue("fullName"),
 		Email:    r.FormValue("email"),
@@ -131,28 +129,114 @@ func (h *handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		Gender:   r.FormValue("gender"),
 		Phone:    r.FormValue("phone"),
 		Address:  r.FormValue("address"),
-		Image:    filepath,
 	}
 
-	id, _ := strconv.Atoi(mux.Vars(r)["id"])
-	user, err := h.UserRepositories.GetUser(id)
+	if dataContext != nil {
+		filepath := dataContext.(string)
+		request := usersdto.UpdateUserRequest{
+			FullName: r.FormValue("fullName"),
+			Email:    r.FormValue("email"),
+			Username: r.FormValue("username"),
+			Password: r.FormValue("password"),
+			ListAs:   r.FormValue("listAs"),
+			Gender:   r.FormValue("gender"),
+			Phone:    r.FormValue("phone"),
+			Address:  r.FormValue("address"),
+			Image:    filepath,
+		}
 
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		response := dto.ErrorResult{Code: http.StatusBadRequest, Message: err.Error()}
+		id, _ := strconv.Atoi(mux.Vars(r)["id"])
+		user, err := h.UserRepositories.GetUser(id)
+
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			response := dto.ErrorResult{Code: http.StatusBadRequest, Message: err.Error()}
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
+		var ctx = context.Background()
+		var CLOUD_NAME = os.Getenv("CLOUD_NAME")
+		var API_KEY = os.Getenv("API_KEY")
+		var API_SECRET = os.Getenv("API_SECRET")
+
+		cld, _ := cloudinary.NewFromParams(CLOUD_NAME, API_KEY, API_SECRET)
+
+		// Upload file to Cloudinary ...
+		resp, err := cld.Upload.Upload(ctx, filepath, uploader.UploadParams{Folder: "hallocorona"})
+
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			response := dto.ErrorResult{Code: http.StatusBadRequest, Message: err.Error()}
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
+		if request.FullName != "" {
+			user.FullName = request.FullName
+		}
+
+		if request.Email != "" {
+			user.Email = request.Email
+		}
+
+		if request.Username != "" {
+			user.Username = request.Username
+		}
+
+		if request.Password != "" {
+			user.Password = request.Password
+		}
+
+		if request.ListAs != "" {
+			user.ListAs = request.ListAs
+		}
+
+		if request.Gender != "" {
+			user.Gender = request.Gender
+		}
+
+		if request.Phone != "" {
+			user.Phone = request.Phone
+		}
+
+		if request.Address != "" {
+			user.Address = request.Address
+		}
+
+		if request.Image != "" {
+			user.Image = resp.SecureURL
+		}
+
+		if user.FullName == "" || user.Email == "" || user.Username == "" || user.Password == "" || user.ListAs == "" || user.Gender == "" || user.Phone == "" || user.Address == "" {
+			validation := validator.New()
+			err := validation.Struct(request)
+
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				response := dto.ErrorResult{Code: http.StatusBadRequest, Message: err.Error()}
+				json.NewEncoder(w).Encode(response)
+				return
+			}
+		}
+
+		data, err := h.UserRepositories.UpdateUser(user)
+
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			response := dto.ErrorResult{Code: http.StatusBadRequest, Message: err.Error()}
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		response := dto.SuccessResult{Code: http.StatusOK, Data: data}
 		json.NewEncoder(w).Encode(response)
 		return
 	}
 
-	var ctx = context.Background()
-	var CLOUD_NAME = os.Getenv("CLOUD_NAME")
-	var API_KEY = os.Getenv("API_KEY")
-	var API_SECRET = os.Getenv("API_SECRET")
-
-	cld, _ := cloudinary.NewFromParams(CLOUD_NAME, API_KEY, API_SECRET)
-
-	// Upload file to Cloudinary ...
-	resp, err := cld.Upload.Upload(ctx, filepath, uploader.UploadParams{Folder: "hallocorona"})
+	id, _ := strconv.Atoi(mux.Vars(r)["id"])
+	user, err := h.UserRepositories.GetUser(id)
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -191,10 +275,6 @@ func (h *handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	if request.Address != "" {
 		user.Address = request.Address
-	}
-
-	if request.Image != "" {
-		user.Image = resp.SecureURL
 	}
 
 	if user.FullName == "" || user.Email == "" || user.Username == "" || user.Password == "" || user.ListAs == "" || user.Gender == "" || user.Phone == "" || user.Address == "" {
