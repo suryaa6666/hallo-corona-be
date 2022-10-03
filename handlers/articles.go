@@ -167,10 +167,6 @@ func (h *handlerArticle) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	dataContext := r.Context().Value(string("dataFile"))
-	filepath := dataContext.(string)
-
-	userInfo := r.Context().Value(string("userInfo")).(jwt.MapClaims)
-	userInfoId := userInfo["id"].(float64)
 
 	var categoriesId []int
 	for _, r := range r.FormValue("categoryId") {
@@ -179,33 +175,119 @@ func (h *handlerArticle) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	request := articledto.UpdateArticleRequest{
+	userInfo := r.Context().Value(string("userInfo")).(jwt.MapClaims)
+	userInfoId := userInfo["id"].(float64)
+
+	var request articledto.UpdateArticleRequest
+	// kalau image kosong
+	request = articledto.UpdateArticleRequest{
 		Title:       r.FormValue("title"),
 		Description: r.FormValue("description"),
 		UserID:      int(userInfoId),
 		CategoryID:  categoriesId,
-		Image:       filepath,
 	}
 
-	id, _ := strconv.Atoi(mux.Vars(r)["id"])
-	article, err := h.ArticleRepositories.GetArticle(id)
+	if dataContext != nil {
+		filepath := dataContext.(string)
+		request = articledto.UpdateArticleRequest{
+			Title:       r.FormValue("title"),
+			Description: r.FormValue("description"),
+			UserID:      int(userInfoId),
+			CategoryID:  categoriesId,
+			Image:       filepath,
+		}
 
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		response := dto.ErrorResult{Code: http.StatusBadRequest, Message: err.Error()}
+		id, _ := strconv.Atoi(mux.Vars(r)["id"])
+		article, err := h.ArticleRepositories.GetArticle(id)
+
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			response := dto.ErrorResult{Code: http.StatusBadRequest, Message: err.Error()}
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
+		var ctx = context.Background()
+		var CLOUD_NAME = os.Getenv("CLOUD_NAME")
+		var API_KEY = os.Getenv("API_KEY")
+		var API_SECRET = os.Getenv("API_SECRET")
+
+		cld, _ := cloudinary.NewFromParams(CLOUD_NAME, API_KEY, API_SECRET)
+
+		// Upload file to Cloudinary ...
+		resp, err := cld.Upload.Upload(ctx, filepath, uploader.UploadParams{Folder: "hallocorona"})
+
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			response := dto.ErrorResult{Code: http.StatusBadRequest, Message: err.Error()}
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
+		if request.Title != "" {
+			article.Title = request.Title
+		}
+
+		if request.UserID != 0 {
+			article.UserID = request.UserID
+		}
+
+		if request.Image != "" {
+			article.Image = resp.SecureURL
+		}
+
+		if request.Description != "" {
+			article.Description = request.Description
+		}
+
+		// ini intinya buat mengefetch isian category
+		var category []models.Category
+		if len(categoriesId) != 0 {
+			category, _ = h.ArticleRepositories.FindArticleCategoriesByID(categoriesId)
+		}
+
+		if request.CategoryID != nil {
+			article.Category = category
+		}
+
+		if article.Title == "" || article.Description == "" || article.Image == "" || article.UserID == 0 || article.CategoryID == nil || request.CategoryID == nil {
+			validation := validator.New()
+			err := validation.Struct(request)
+
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				response := dto.ErrorResult{Code: http.StatusBadRequest, Message: err.Error()}
+				json.NewEncoder(w).Encode(response)
+				return
+			}
+		}
+
+		data, err := h.ArticleRepositories.UpdateArticle(article)
+
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			response := dto.ErrorResult{Code: http.StatusBadRequest, Message: err.Error()}
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
+		result, err := h.ArticleRepositories.UpdateArticleCategory(data, data.ID, categoriesId)
+
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			response := dto.ErrorResult{Code: http.StatusBadRequest, Message: err.Error()}
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		response := dto.SuccessResult{Code: http.StatusOK, Data: result}
 		json.NewEncoder(w).Encode(response)
 		return
 	}
 
-	var ctx = context.Background()
-	var CLOUD_NAME = os.Getenv("CLOUD_NAME")
-	var API_KEY = os.Getenv("API_KEY")
-	var API_SECRET = os.Getenv("API_SECRET")
-
-	cld, _ := cloudinary.NewFromParams(CLOUD_NAME, API_KEY, API_SECRET)
-
-	// Upload file to Cloudinary ...
-	resp, err := cld.Upload.Upload(ctx, filepath, uploader.UploadParams{Folder: "hallocorona"})
+	id, _ := strconv.Atoi(mux.Vars(r)["id"])
+	article, err := h.ArticleRepositories.GetArticle(id)
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -222,10 +304,6 @@ func (h *handlerArticle) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 		article.UserID = request.UserID
 	}
 
-	if request.Image != "" {
-		article.Image = resp.SecureURL
-	}
-
 	if request.Description != "" {
 		article.Description = request.Description
 	}
@@ -240,7 +318,7 @@ func (h *handlerArticle) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 		article.Category = category
 	}
 
-	if article.Title == "" || article.Description == "" || article.Image == "" || article.UserID == 0 || article.CategoryID == nil || request.CategoryID == nil {
+	if article.Title == "" || article.Description == "" || article.UserID == 0 || article.CategoryID == nil || request.CategoryID == nil {
 		validation := validator.New()
 		err := validation.Struct(request)
 
@@ -261,7 +339,7 @@ func (h *handlerArticle) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	categoryResp, err := h.ArticleRepositories.UpdateArticleCategory(data, data.ID, categoriesId)
+	result, err := h.ArticleRepositories.UpdateArticleCategory(data, data.ID, categoriesId)
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -271,7 +349,7 @@ func (h *handlerArticle) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	response := dto.SuccessResult{Code: http.StatusOK, Data: categoryResp}
+	response := dto.SuccessResult{Code: http.StatusOK, Data: result}
 	json.NewEncoder(w).Encode(response)
 }
 
