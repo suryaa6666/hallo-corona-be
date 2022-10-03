@@ -261,8 +261,17 @@ func (h *handlerArticle) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	categoryResp, err := h.ArticleRepositories.UpdateArticleCategory(data, data.ID, categoriesId)
+
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		response := dto.ErrorResult{Code: http.StatusBadRequest, Message: err.Error()}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
-	response := dto.SuccessResult{Code: http.StatusOK, Data: data}
+	response := dto.SuccessResult{Code: http.StatusOK, Data: categoryResp}
 	json.NewEncoder(w).Encode(response)
 }
 
