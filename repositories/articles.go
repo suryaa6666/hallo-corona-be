@@ -73,7 +73,7 @@ func (r *repository) UpdateArticleCategory(article models.Article, articleId int
 		if id == 43 || id == 45 {
 			continue
 		}
-		err = r.db.Exec("INSERT INTO article_categories (`article_id`, `category_id`) VALUES (?,?)", articleId, id).Error
+		err = r.db.Exec("INSERT INTO article_categories VALUES (?,?)", articleId, id).Error
 	}
 
 	return article, err
