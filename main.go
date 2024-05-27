@@ -33,6 +33,6 @@ func main() {
 	AllowedMethods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "HEAD", "OPTIONS", "PATCH", "DELETE"})
 	AllowedOrigins := handlers.AllowedOrigins([]string{"*"})
 
-	fmt.Println("server running on localhost : " + port)
-	http.ListenAndServe("127.0.0.1:"+port, handlers.CORS(AllowedHeaders, AllowedMethods, AllowedOrigins)(r))
+	fmt.Println("server running on port : " + port)
+	http.ListenAndServe(":"+port, handlers.CORS(AllowedHeaders, AllowedMethods, AllowedOrigins)(r))
 }
